@@ -13,9 +13,11 @@ enum modes
 };
 enum parameters
 {
-    ADJECTIVE_VELOCITY,
-    DYNAMIC_VISCOSITY,
-    DENSITY,
+    TAU,
+    KAPPA,
+    LAMBDA,
+    SIGMA,
+    ETA,
     EXTERNAL_FORCE_X,
     EXTERNAL_FORCE_Y
 };
@@ -162,11 +164,14 @@ class mesh
     condition *dirichlet_list;
     //condition *neumann_list;
 public:
-    void setParameters(float u_bar, float nu, float rho, float f_x, float f_y)
+    void setParameters(float t, float ka, float l, float s,
+                       float e, float f_x, float f_y)
     {
-        parameters[ADJECTIVE_VELOCITY] = u_bar;
-        parameters[DYNAMIC_VISCOSITY] = nu;
-        parameters[DENSITY] = rho;
+        parameters[TAU] = t;
+        parameters[KAPPA] = ka;
+        parameters[LAMBDA] = l;
+        parameters[SIGMA] = s;
+        parameters[ETA] = e;
         parameters[EXTERNAL_FORCE_X] = f_x;
         parameters[EXTERNAL_FORCE_Y] = f_y;
     }

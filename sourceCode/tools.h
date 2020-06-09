@@ -88,19 +88,19 @@ void leerMallayCondiciones(mesh &m, char *filename)
 {
     char inputfilename[150];
     ifstream file;
-    float u_bar, nu, rho, f_x, f_y;
+    float tau, kappa, lambda, sigma, eta, f_x, f_y;
     int nnodes, neltos, ndirich_u, ndirich_v, ndirich_p;
     condition *dirichlet_u, *dirichlet_v, *dirichlet_p;
 
     addExtension(inputfilename, filename, ".dat");
     file.open(inputfilename);
 
-    file >> u_bar >> nu >> rho >> f_x >> f_y;
+    file >> tau >> kappa >> lambda >> sigma >> eta >> f_x >> f_y;
     //cout <<u_bar<<nu<<rho<<f_x<<f_y<<"\n";
     file >> nnodes >> neltos >> ndirich_u >> ndirich_v >> ndirich_p;
     //cout <<nnodes<<neltos<<ndirich_u<<ndirich_v<<ndirich_p<<"\n";
 
-    m.setParameters(u_bar, nu, rho, f_x, f_y);
+    m.setParameters(tau, kappa, lambda, sigma, eta, f_x, f_y);
     m.setSizes(nnodes, neltos, ndirich_u + ndirich_v + ndirich_p);
     m.createData();
 
