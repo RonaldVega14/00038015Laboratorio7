@@ -242,7 +242,7 @@ Matrix createLocalK(int e, mesh &m)
     ubicarSubMatriz(K, 0, 5, 0, 5, sumMatrix(matrixA, matrixG, 6, 6));
     ubicarSubMatriz(K, 6, 8, 0, 5, matrixE);
     ubicarSubMatriz(K, 0, 5, 6, 8,
-                    sumMatrix(negative(matrixD), matrixD, 6, 3));
+                    sumMatrix(negative(matrixR), matrixD, 6, 3));
 
     return K;
 }
