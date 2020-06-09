@@ -181,16 +181,16 @@ float calculateLocalJ(int i, mesh m)
 Matrix createLocalK(int e, mesh &m)
 {
     //Preparaci�n de ingredientes
-    float u_bar, nu, rho, Ae, J, D;
+    float t, ka, s, l, Ae, J, D;
 
     //Componentes de K
     // [ A+K  G ]
     // [  D   0 ]
-    Matrix matrixA, matrixK, matrixG, matrixD;
+    Matrix matrixA, matrixG, matrixR, matrixD, matrixE;
     Matrix K, g_matrix, g_matrix_t, Alpha, Beta, Alphat, Betat, BPrima, BPrimat;
 
     //Preparando matrixA (En clase conocida simplemente como A)
-    u_bar = m.getParameter(ADJECTIVE_VELOCITY);
+    t = m.getParameter(TAU);
     J = calculateLocalJ(e, m);
     D = calculateLocalD(e, m);
 
@@ -203,30 +203,46 @@ Matrix createLocalK(int e, mesh &m)
     calculateGammaMatrix(g_matrix);
     calculateLocalA(e, Alpha, m);
     calculateBetaMatrix(Beta);
-    productRealMatrix(u_bar * J / (6 * D), productMatrixMatrix(g_matrix, productMatrixMatrix(Alpha, Beta, 2, 2, 6), 6, 2, 6), matrixA);
-
-    //Preparando matrixK (En clase conocida simplemente como K)
-    nu = m.getParameter(DYNAMIC_VISCOSITY);
+    productRealMatrix(t * J / (24 * D), productMatrixMatrix(g_matrix, productMatrixMatrix(Alpha, Beta, 2, 2, 6), 6, 2, 6), matrixA);
+    //Preparando Matriz G
+    ka = m.getParameter(KAPPA);
     Ae = calculateLocalArea(e, m);
     transpose(Alpha, Alphat);
     transpose(Beta, Betat);
-    productRealMatrix(nu * Ae / (D * D), productMatrixMatrix(Betat, productMatrixMatrix(Alphat, productMatrixMatrix(Alpha, Beta, 2, 2, 6), 2, 2, 6), 6, 2, 6), matrixK);
-
-    //Preparando matrixG (En clase conocida simplemente como G)
-    rho = m.getParameter(DENSITY);
+    productRealMatrix(
+        ka * Ae / (D * D),
+        productMatrixMatrix(
+            Betat,
+            productMatrixMatrix(Alphat, productMatrixMatrix(Alpha, Beta, 2, 2, 6),
+                                2, 2, 6),
+            6, 2, 6),
+        matrixG);
+    //Calculo de Bprima y su multiplicacion necesaria.
     calculateBPrima(BPrima);
-    productRealMatrix(J / (6 * rho * D), productMatrixMatrix(g_matrix, productMatrixMatrix(Alpha, BPrima, 2, 2, 3), 6, 2, 3), matrixG);
-
-    //Preparando matrixD (En clase conocida simplemente como D)
+    Matrix g_a_b_matrix = productMatrixMatrix(
+        g_matrix, productMatrixMatrix(Alpha, BPrima, 2, 2, 3), 6, 2, 3);
+    // Preparando matrixL
+    s = m.getParameter(SIGMA);
+    calculateBPrima(BPrima);
+    productRealMatrix((J * s) / (48 * D), g_a_b_matrix, matrixR);
+    // Preparando matrixD
+    l = m.getParameter(LAMBDA);
+    calculateBPrima(BPrima);
+    productRealMatrix((2 * J * l) / (18 * D), g_a_b_matrix, matrixD);
+    // Preparando matrixE
     transpose(BPrima, BPrimat);
     transpose(g_matrix, g_matrix_t);
-    productRealMatrix(J / (6 * D), productMatrixMatrix(BPrimat, productMatrixMatrix(Alphat, g_matrix_t, 2, 2, 6), 3, 2, 6), matrixD);
-
-    //Colocando submatrices en K
+    productRealMatrix(
+        J / (6 * D),
+        productMatrixMatrix(BPrimat, productMatrixMatrix(Alphat, g_matrix_t, 2, 2, 6),
+                            3, 2, 6),
+        matrixE);
+    // Colocando submatrices en K
     zeroes(K, 9);
-    ubicarSubMatriz(K, 0, 5, 0, 5, sumMatrix(matrixA, matrixK, 6, 6));
-    ubicarSubMatriz(K, 0, 5, 6, 8, matrixG);
-    ubicarSubMatriz(K, 6, 8, 0, 5, matrixD);
+    ubicarSubMatriz(K, 0, 5, 0, 5, sumMatrix(matrixA, matrixG, 6, 6));
+    ubicarSubMatriz(K, 6, 8, 0, 5, matrixE);
+    ubicarSubMatriz(K, 0, 5, 6, 8,
+                    sumMatrix(negative(matrixD), matrixD, 6, 3));
 
     return K;
 }
@@ -238,8 +254,10 @@ Vector createLocalb(int e, mesh &m)
 
     float f_x = m.getParameter(EXTERNAL_FORCE_X);
     float f_y = m.getParameter(EXTERNAL_FORCE_Y);
+    float eta = m.getParameter(ETA);
     float J = calculateLocalJ(e, m);
     calculateGammaMatrix(g_matrix);
+
     zeroes(f, 2);
     f.at(0) = f_x;
     f.at(1) = f_y;
@@ -247,9 +265,12 @@ Vector createLocalb(int e, mesh &m)
     zeroes(b0, 6);
     productMatrixVector(g_matrix, f, b0);
     productRealVector(J / 6, b0, b);
-    b.push_back(0);
-    b.push_back(0);
-    b.push_back(0);
+
+    float h = (eta * J) / 6;
+
+    b.push_back(h);
+    b.push_back(h);
+    b.push_back(h);
 
     return b;
 }
@@ -337,9 +358,6 @@ void assemblyK(element e, Matrix localK, Matrix &K, int nnodes)
     K.at(index7).at(index4) += localK.at(6).at(3);
     K.at(index7).at(index5) += localK.at(6).at(4);
     K.at(index7).at(index6) += localK.at(6).at(5);
-    //K.at(index7).at(index7) += localK.at(6).at(6);
-    //K.at(index7).at(index8) += localK.at(6).at(7);
-    //K.at(index7).at(index9) += localK.at(6).at(8);
 
     K.at(index8).at(index1) += localK.at(7).at(0);
     K.at(index8).at(index2) += localK.at(7).at(1);
@@ -347,9 +365,6 @@ void assemblyK(element e, Matrix localK, Matrix &K, int nnodes)
     K.at(index8).at(index4) += localK.at(7).at(3);
     K.at(index8).at(index5) += localK.at(7).at(4);
     K.at(index8).at(index6) += localK.at(7).at(5);
-    //K.at(index8).at(index7) += localK.at(7).at(6);
-    //K.at(index8).at(index8) += localK.at(7).at(7);
-    //K.at(index8).at(index9) += localK.at(7).at(8);
 
     K.at(index9).at(index1) += localK.at(8).at(0);
     K.at(index9).at(index2) += localK.at(8).at(1);
@@ -357,9 +372,6 @@ void assemblyK(element e, Matrix localK, Matrix &K, int nnodes)
     K.at(index9).at(index4) += localK.at(8).at(3);
     K.at(index9).at(index5) += localK.at(8).at(4);
     K.at(index9).at(index6) += localK.at(8).at(5);
-    //K.at(index9).at(index7) += localK.at(8).at(6);
-    //K.at(index9).at(index8) += localK.at(8).at(7);
-    //K.at(index9).at(index9) += localK.at(8).at(8);
 }
 
 void assemblyb(element e, Vector localb, Vector &b, int nnodes)
